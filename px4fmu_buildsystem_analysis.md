@@ -46,7 +46,7 @@
 
 
 
-```makefile
+```makefile linenos
 ifeq ($(wildcard .git),)
     $(error YOU HAVE TO USE GIT TO DOWNLOAD THIS REPOSITORY. ABORTING.)
 endif
@@ -189,7 +189,7 @@ call 에 의해 위에 정의된 `cmake-build`함수가 해당하는 인자로 �
 
 115~116줄에서 위에서 설명된 인자로 호출된다.
 
-```makefile
+```makefile linenos
 define cmake-build //Makefile 함수 정의, cmake-build를 정의한다. 아래 상세히 설명하겠다.
 +@$(eval BUILD_DIR = $(SRC_DIR)/build/$@$(BUILD_DIR_SUFFIX))
 +@if [ $(PX4_CMAKE_GENERATOR) = "Ninja" ] && [ -e $(BUILD_DIR)/Makefile ]; then rm -rf $(BUILD_DIR); fi
