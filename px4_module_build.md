@@ -1,3 +1,91 @@
+#All of PX4 moudle build
+
+
+
+##빌드 환경 구축
+
+*이 문서는 리눅스-우분투 환경에서 작성되었습니다.
+
+##툴체인 설치
+
+[참고링크](https://dev.px4.io/kr/setup/dev_env_linux.html ) 
+
+1. Pixhawk/NuttX와 jMAVSim/Gazebo 시뮬레이션 항목에 있는 [ubuntu_sim_nuttx.sh](https://raw.githubusercontent.com/PX4/Devguide/master/build_scripts/ubuntu_sim_nuttx.sh)파일을 이용하여 설치한다.
+2. Ground Control 소프트웨어 항목의 QGroundControl Daily Build링크를 이용해 QGroundControl을 설치
+
+
+설치되는 툴
+
+* PX4 Firmware
+
+
+* Ninja build system
+* QGroundControl Appimage
+* JMavSim을 위한 JAVA(HITL환경 구축)
+* Gazebo(SITL환경 구축)
+
+
+> HITL(Hardware In The Loop) : 하드웨어와의 상호작용을 포함한(따라서, pixhawk필요) 시뮬레이션
+>
+> SITL(Software In The Loop) : 가상 환경에서 펌웨어만을 가지고(pixhawk 필요 x) 시뮬레이션
+
+```
+cd ~
+wget https://raw.githubusercontent.com/PX4/Devguide/master/build_scripts/ubuntu_sim_nuttx.sh
+source ubuntu_sim_nuttx.sh
+wget https://s3-us-west-2.amazonaws.com/qgroundcontrol/builds/master/QGroundControl.AppImage
+```
+
+위와 같이 할 경우 /src/Firmware 에 펌웨어 소스파일이 그리고 홈 디렉터리에 QGroundControl.AppImage가 생성된다.
+
+## 코드 빌드하기
+
+[참고링크](https://dev.px4.io/kr/setup/building_px4.html)
+
+```
+mkdir -p ~/src
+cd ~/src
+git clone https://github.com/PX4/Firmware.git
+(위의 ubuntu_sim_nuttx.sh를 이용해 설치했다면 ~/src/Firmware 에 펌웨어 소스가 있다.)
+cd ~/src/Firmware
+make px4-v2_default
+```
+
+~/src/Firmware/build/px4fmu-v2_default/px4fmu-v2_default.px4 이 생성된다. 이 파일이 pixhawk에 올릴 펌웨어 파일이다.
+
+
+
+## SITL 사용법
+
+[참조링크](https://dev.px4.io/kr/simulation/gazebo.html)
+
+```
+cd ~/src/Firmware
+make posix_sitl_default gazebo
+```
+
+
+
+## HITL 사용법
+
+1. QGroundControl 을 실행하고 USB-5Pin 케이블로 Pixhawk를 연결( 자동으로 인식 )
+2. 톱니바퀴 아이콘 클릭 후 Firmware 탭
+3. 오른쪽 리스트에서 px4 선택후 설치
+4. Airframe 탭에서 simulation 으로 선택 후 HIL 모드로 지정하고 적용하여 재시작
+5. 해당 작업이 완료된 후 Qgroundcontrol 을 종료하고 Pixhawk를 분리하여 연결을 끊는다.
+
+
+
+## 커스텀 펌웨어 테스트 방법
+
+
+
+
+
+
+
+
+
 # px4 빌드 시스템 분석
 
 시작은 px4 홈페이지의 어플리케이션 작성에서 역추적해 들어갔다. 어플리케이션의 생성은 [어플리케이션 작성하기](https://dev.px4.io/kr/tutorials/tutorial_hello_sky.html) 페이지를 참조해라. 해당 링크의 설명을 보면,
@@ -281,10 +369,6 @@ endef
 
 이제 `Makefile`이 실행한 `cmake`명령어가 어떻게 빌드할지를 정하는지 알아보자. 해당 내용은 `/firmware/CMakeList.txt`에 작성되어 있다.
 
-
-
-### 모듈 빌드
-
 해당 파일에는 `add_subdirectory(source_dir)`가 있는데, 이는 소스코드의 경로를 지정하는 함수이다. 지정된 경로에는 그 소스코드에 해당하는 `CMakeList.txt`가 있으며, 이 파일을 통해 소스코드가 어떤 플래그와 설정을 가지고 컴파일 되는지 알 수 있다.
 
 `add_subdirectory(source_dir)`가 지정하는 디렉터리를 `message()`를 이용해 모두 출력하였다. 아래와 같은 방법이다
@@ -378,128 +462,17 @@ platforms/nuttx
 
 이다. 
 
-위 목록은  Firmware/cmake/configs/nuttx_px4fmu-v2_default.cmake  에 정의되어 있습니다.(만일 다른 타입의 펌웨어를 지정한다면 해당 경로의 다른 cmake파일을 참조할 것입니다.)
-
-소스 파일은 각 경로의 CMakeLists.txt 의 설정에 의하여 빌드됩니다.
-
-```cmake
-px4_add_module(
-	MODULE drivers__vmount
-	MAIN vmount
-	COMPILE_FLAGS
-		-Wno-sign-compare # TODO: fix all sign-compare
-	STACK_MAIN 1024
-	SRCS
-		input.cpp
-		input_mavlink.cpp
-		input_rc.cpp
-		input_test.cpp
-		output.cpp
-		output_mavlink.cpp
-		output_rc.cpp
-		vmount.cpp
-	DEPENDS
-		platforms__common
-	)
-```
 
 
 
-px4_add_module 은 Firmware/cmake/common/px4_base.cmake 에 정의되어 있습니다
-
-```cmake
-#=============================================================================
-#
-#	px4_add_module
-#
-#	This function builds a static library from a module description.
-#
-#	Usage:
-#		px4_add_module(MODULE <string>
-#			[ MAIN <string> ]
-#			[ STACK <string> ] !!!!!DEPRECATED, USE STACK_MAIN INSTEAD!!!!!!!!!
-#			[ STACK_MAIN <string> ]
-#			[ STACK_MAX <string> ]
-#			[ COMPILE_FLAGS <list> ]
-#			[ INCLUDES <list> ]
-#			[ DEPENDS <string> ]
-#			[ EXTERNAL ]
-#			)
-#
-#	Input:
-#		MODULE			: unique name of module
-#		MAIN			: entry point, if not given, assumed to be library
-#		STACK			: deprecated use stack main instead
-#		STACK_MAIN		: size of stack for main function
-#		STACK_MAX		: maximum stack size of any frame
-#		COMPILE_FLAGS		: compile flags
-#		LINK_FLAGS		: link flags
-#		SRCS			: source files
-#		INCLUDES		: include directories
-#		DEPENDS			: targets which this module depends on
-#		EXTERNAL		: flag to indicate that this module is out-of-tree
-#
-#	Output:
-#		Static library with name matching MODULE.
-#
-#	Example:
-#		px4_add_module(MODULE test
-#			SRCS
-#				file.cpp
-#			STACK_MAIN 1024
-#			DEPENDS
-#				git_nuttx
-#			)
-#
-```
-
-위의 형식에 의하여 타겟과 의존성을 설정합니다.
-
-이 정보를 바탕으로 Ninja로 펌웨어를 빌드합니다.
 
 
 
-### nuttx 빌드
+ 이 문서는 아직 미완성 입니다. 위 경로의 CMakeList.txt를 분석하고, /firmware/CMakeList.txt를 마저 분석하면 nuttx와 모듈들이 어떻게 빌드되는지 이해할 수 있다고 생각됩니다.
 
-Firmware/CMakeList.txt 의 다음 항목에 의하여 빌드됩니다.
+ 현재 firmware/cmake/common/ 의 라이브러리 함수를 통해 모듈이 빌드되는 윤곽을 잡았습니다.
 
-```cmake
-#=============================================================================
-# require px4 module interface
-set(px4_required_interface
-	px4_os_prebuild_targets
-	px4_os_add_flags
-	)
-foreach(cmd ${px4_required_interface})
-	if (NOT COMMAND ${cmd})
-		message(FATAL_ERROR "${config_module} must implement ${cmd}")
-	endif()
-endforeach()
+ firmware/platforms/nuttx/CMakeLists.txt 에 nuttx가 어떻게 빌드되는지 명시되어 있지만 분석에 애를 먹고 있습니다.
 
-set(px4_required_config config_module_list)
-foreach(conf ${px4_required_config})
-	if (NOT DEFINED ${conf})
-		message(FATAL_ERROR "cmake/${config_module} must define ${conf}")
-	endif()
-endforeach()
-
-# force static lib build
-set(BUILD_SHARED_LIBS OFF)
-
-#=============================================================================
-...
-#=============================================================================
-# external libraries
-#
-px4_os_prebuild_targets(OUT prebuild_targets
-	BOARD ${BOARD}
-	THREADS ${THREADS})
-#=============================================================================
-```
-
-
-
-ninja는 모듈과 nuttx os를 합쳐서 펌웨어 파일을 생성합니다.
-
-
+ 그리고 빌드된 nuttx와 모듈들이 어떻게 링크 되는지도 분석 중에 있습니다.
 
