@@ -120,7 +120,7 @@ age 30
 ### 객체 프로퍼티 삭제
 
 ```js
-delete foo.dickname;
+delete foo.nickname;
 ```
 
 프로퍼티를 삭제할 뿐 객체는 삭제되지 않는다.
@@ -214,7 +214,7 @@ console.dir(foo);			//객체 상세 정보 가능
 
 ```js
 //배열 리터럴으 통한 5개 원소를 가진 배열 생성
-var colorArr = ['orange', 'yello', 'blue', 'green', red];
+var colorArr = ['orange', 'yello', 'blue', 'green', 'red'];
 console.log(colorArr[0]);
 ```
 
@@ -610,7 +610,7 @@ func(1,2);	//1 2
 func(1,2,3);//1 2
 ```
 
-argument객ㅊ는 유사배열객체이다
+argument객체는 유사배열객체이다
 
 * 함수를 호출할 때 넘겨진 인자
 * length 프로퍼티
@@ -879,7 +879,7 @@ function printFunc(){
     console.log(printValue());
 }
 
-printFunc();
+printFunc();	//value2
 ```
 
 ```js
@@ -892,7 +892,7 @@ function printFunc(func){
     var value = "value2";
     console.log(func());
 }
-printFunc(printValue);
+printFunc(printValue);	//value1
 ```
 
 
