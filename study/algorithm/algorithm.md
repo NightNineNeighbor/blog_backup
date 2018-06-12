@@ -219,5 +219,11 @@ class InputReader {
 }
 ```
 
+경로찾기
+
+```java
+getClass().getResource("numbers.txt").getPath()
+```
+
 
 
