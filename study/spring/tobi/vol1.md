@@ -189,5 +189,201 @@ public void add(final User user) throws ClassNotFoundException, SQLException {
 
 ## 4장 예외
 
-5
+## 5장 서비스 추상화
+
+## 6장 AOP
+
+### 프록시 패턴
+
+마치 자신이 클라이언트가 사용하려는 실제 대상인 것처럼 위장해서 클라이언트의 요청을 받아주는 것을 **프록시**라고 한다 . 그리고 프록시를 통해 최종적으로 요청을 위임받아 처리하는 실체 오브잭트를 **타깃** 또는 **실체real subject** 라고 한다.
+
+```java
+public interface UserService {
+	void upgradeLevels();
+}
+public class UserServiceImpl implements UserService {		//타깃, 실체
+	public void upgradeLevels() {
+		List<User> users = userDao.getAll();
+		for (User user : users) {
+			if (canUpgradeLevel(user)) {
+				upgradeLevel(user);
+			}
+		}
+	}
+}
+public class UserServiceTx implements UserService {	//프록시
+    @Setter UserService UserService
+	public void upgradeLevels() {
+		TransactionStatus status = this.transactionManager	//부가기능
+				.getTransaction(new DefaultTransactionDefinition());
+		try {
+
+			userService.upgradeLevels();	//실체 코드 실행
+
+			this.transactionManager.commit(status);	//부가기능
+		} catch (RuntimeException e) {
+			this.transactionManager.rollback(status);
+			throw e;
+		}
+	}
+}
+public class client{
+    public static void main(String[] args){
+        UserService userService = new UserServiceTx();	
+        UserServiceTx.setUserService(new UserServiceImpl());
+        userServiceTx.upgradeLevels();
+    }
+}
+  
+```
+
+![proxy](./vo1_img/proxy.jpg)
+
+### 데코레이터 패턴
+
+타깃에 부가적인 기능을 런타임 시 다이내믹하게 부여해주기 위해 프록시를 사용하는 패턴을 말한다.
+
+![decorator](./vo1_img/decorator.jpg)
+
+### 리플렉션
+
+리플렉션은 자바의 코드 자체를 추상화해서 접근하도록 만든 것이다.
+
+```java
+public class ReflectionTest {
+	@Test
+	public void invokeMethod() throws Exception{
+		String name = "Spring";
+		
+        //length()
+		assertThat(name.length(), is(6));
+		
+		Method lengthMethod = String.class.getMethod("length");
+		assertThat((Integer)lengthMethod.invoke(name), is(6));
+        
+        //charAt()
+        assertThat(name.charAt(0), is('S'));
+        
+        Method charAtMethod = String.class.getMethod("charAt". int.class);
+        assertThat((Character)charAtMethod.invoke(name, 0), is('S'));
+	}
+}
+```
+
+### 다이나믹 프록시
+
+다이나믹 프록시는 프록시 팩토리에 의해 런타임 시 다이나믹하게 만들어지는 오브젝트다. 
+
+다이나믹 프록시가 인터페이스 구현 클래스의  오브젝트는 만들어 주지만, 프록시로부터 필요한 부가기능 제공 코드는 직접 작성해야 한다. 부가기능은 InvocationHandler를 구현한 오브젝트에 담는다. InvocationHandler인터페이스는 프록시 오브젝트와 독립적이다. InvocationHandler는 다음과 같은 메소드 한개만을 가진다.
+
+> public Object invoke(Object proxy, Method method, Object[] args)
+
+```java
+interface Hello{
+    String sayHello(String name);
+    String sayHi(String name);
+}
+public class HelloTarget implements Hello{
+    public String sayHello(String name){ return "Hello " + name; }
+    public String sayHi(String name){ return "Hi " + name; }
+                                        
+}
+//대문자로 바꾸는 부가기능 추가.
+public class UppercaseHandler implemehts InvocationHandler{
+    Hello target;
+    
+    public UppercaseHandler(Hello target){
+        this.target = target;
+    }
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable{
+         //타겟으로 위임, 인터페이스 메소드 호출에 모두 적용된다.
+        String ret = (String)method.invoke(target, args);
+        if(ret instanceof String && method.getName().startsWith("say")){ //선별적 기능
+            return ret.toUpperCase(); //부가기능
+        } else{
+            return ret;
+        }      
+    }
+    
+}
+Class Client{
+    public static void main(String[] args) {
+		Hello proxiedHello = (Hello)Proxy.newProxyInstance(
+        	getClass().getClassLoader(),
+        	new Class[]{Hello.class},	//구현할 인터페이스
+        	new UppercaseHandler( new HelloTarget() ) ); //부가기능을 담은 InvocationHandler
+        
+        proxiedHello.sayHello();
+        proxiedHello.sayHi();
+	}
+}
+```
+
+#### 프록시 팩토리 빈 - 포인트컷
+
+> 어드바이저 = 포인트컷(메소드 선정 알고리즘) + 어드바이스(부가기능)
+
+```java
+@Test
+public void Client(){
+    ProxyFactoryBean pfBean = new ProxyFactoryBean();
+    pfBean.setTarget(new HelloTarget());
+    //포인트컷
+    NameMatchMethodPointcut pointcut = new NameMatchMethodPointcut();
+    pointcut.setMappedName("sayH*");
+    //어드바이스, 포인트컷과 조합해서 등록한다.
+    pfBean.addAdvisor(new DefaultPointcutAdvisor(pointcut, new UppercaseAdvice()));
+    
+    Hello proxiedHello = (Hello) pfBean.getObject();    
+}
+```
+
+#### aop네임스페이스
+
+```java
+<aop:config>
+		<aop:advisor advice-ref="transactionAdvice" pointcut="execution(* *..*ServiceImpl.upgrade*(..))"/>
+	</aop:config>
+```
+
+
+
+### 애스펙트 지향 프로그래밍(AOP : Aspect Oriented Programing)
+
+애플리케이션의 핵심적인 기능에서 부가적인 기능을 분리해서 애스펙트라는 독특한 모듈로 만들어서 설계하고 개발하는 방법
+
+#### 용어
+
+* 타깃 : 부가기능을 부여할 대상
+* 어드바이스 : 타깃에게 제공할 부가기능을 담은 모듈
+* 조인 포인트 : 어드바이스가 적용될 수 있는 위치
+* 포인트컷 : 조인포인트를 선별하는 작업
+* 프록시 : 클라이언트와 타깃 사이에 투명하게 존재하면서 부가기능을 제공하는 오브젝트
+* 어드바이저 : 포인트컷과 어드바이스를 하나씩 갖고 있는 오브젝트
+* 에스팩트 : OOP의 클래스와 마찬가지로 AOP의 기본 모듈이다.
+
+
+
+### 트랜잭션 정의
+
+#### 트랜잭션 전파
+
+트랜잭션의 경계에서 이미 진행중인 트랜잭션이 있을 때 또는 없을 때 어떻게 동작할 것인지 결정하는 방법
+
+* PROPAGATION_REQUIRED : 진행중인 트랜잭션이 없으면 새로 시작하고, 이미 시작된 트랜잭션이 있으면 참여한다.
+* PROPAGATION_REQUIRES_NEW : 항상 새로운 트랜잭션을 시작한다.
+* PROPAGATION_NOT_SUPPORTED : 트랜잭션 없이 동작하도록 만든다.
+
+#### 격리수준
+
+#### 제한시간
+
+#### 읽기전용
+
+트랜잭션 네에서 데이터를 조작하려는 시도를ㄹ 막아줄 수 있다. 성능 향상도 기대할 수 있다.
+
+
+
+
 
